@@ -12,8 +12,8 @@ from random import sample
 from tqdm import trange
 from scipy.stats import sem
 from utils import setup_seed
-from cortx_model import tab_mlp, contrast_generator
-from shap_evaluation import evaluation_mse
+from cortx.cortx_model import tab_mlp, contrast_generator
+from cortx.shap_evaluation import evaluation_mse
 
 from contrastive.contrastive_model import DualBranchContrast
 import contrastive.infonce as L

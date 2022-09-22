@@ -12,8 +12,8 @@ from random import sample
 from tqdm import trange
 from scipy.stats import sem
 from utils import drop_feature, setup_seed
-from cortx_model import tab_mlp, contrast_generator
-from shap_evaluation import evaluation_ce
+from cortx.cortx_model import tab_mlp, contrast_generator
+from cortx.shap_evaluation import evaluation_ce
 
 from contrastive.contrastive_model import DualBranchContrast
 import contrastive.infonce as L
@@ -101,7 +101,7 @@ def main(args):
     use_cuda = True
     if use_cuda and torch.cuda.is_available():
         print('cuda ready...')
-        device = 'cuda:2'
+        device = 'cuda:3'
 
 
     ###################
