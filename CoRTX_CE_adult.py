@@ -58,7 +58,7 @@ class Datagenerator(Dataset):
 
     def __getitem__(self, index):
         return self.data_idx_list[index], index
-       
+
     def __len__(self):
         return len(self.data_emb_list)
 
@@ -142,7 +142,7 @@ def main(args):
                                                 device=device)
 
     train_loader = DataLoader(dataset=train_data, batch_size=args.bs, shuffle=True)
-    test_loader = DataLoader(dataset=test_data, batch_size=512, shuffle=True)                                               
+    test_loader = DataLoader(dataset=test_data, batch_size=512, shuffle=True)
     protocal_train_loader = DataLoader(protocal_train_data, batch_size=256, shuffle=True)
 
 
@@ -156,7 +156,7 @@ def main(args):
     neg_num = args.neg_num
     temper = args.temper
     n_epochs = args.exp_epoch
-    
+
     model = tab_mlp(input_dim=len(column_data), output_dim=256,
                     class_num=len(column_data), layer_num=3, hidden_dim=256,
                     activation="torch.nn.functional.elu")
@@ -175,14 +175,16 @@ def main(args):
     ################
     model.train()
     for epoch in trange(1, n_epochs, desc="Explanation Encoder Training", unit="epochs"):
-        
+
         # pretrain loading
         if args.pretrain:
             print(" ===== Start to use prtrain =====")
-            checkpoint = torch.load('./adult/weight/model_adult_autoint_0.01.pth.tar')
+            checkpoint = torch.load('./adult/weight/RANK_model_adult_CoRTX_0.25.pth.tar')
             model = checkpoint["pred_model"]
             protocal_model = checkpoint["head_linear_model"]
-            best_acc, std_mAP = evaluation_ce(model, protocal_model, test_loader, args.head_propor, best_acc, best_std, args.pretrain)
+            best_acc, best_std = evaluation_ce( model, protocal_model, test_loader,
+                                                args.head_propor, best_acc, best_std,
+                                                args.pretrain )
             break
 
 	    # init training loss
@@ -204,7 +206,6 @@ def main(args):
         # Explanation Head Training
         ################
         if epoch%5==0:
-
             print('----- Epoch: {} ----- \t Training Loss: {:.6f}'.format(epoch, train_loss))
             model.eval()
 
@@ -217,7 +218,7 @@ def main(args):
             protocal_model.to(device)
             protocal_criterion = nn.CrossEntropyLoss().to(device)
             protocal_optimizer = torch.optim.Adam(protocal_model.parameters(), lr=5e-3)
-            
+
             protocal_model.train()
             print("propor Length: ", len(protocal_train_loader.dataset))
             for epoch in trange(protocal_n_epochs, desc="Explanation Head Training", unit="epochs"):
@@ -226,9 +227,9 @@ def main(args):
 
                 # train the model
                 for data, ranking_gt in protocal_train_loader:
-                    
-                    protocal_optimizer.zero_grad()   
-                    output = protocal_model(model(data))          
+
+                    protocal_optimizer.zero_grad()
+                    output = protocal_model(model(data))
                     ranking_pred = output.reshape(-1, ranking_gt.shape[1])
                     ranking_target = ranking_gt.long().reshape(-1)
 
@@ -242,9 +243,12 @@ def main(args):
                 # if epoch%100 ==0:
                 #    print('Epoch: {} \t Training Loss: {:.6f}'.format(epoch+1, train_loss))
 
-            best_acc, best_std = evaluation_ce(model, protocal_model, test_loader, args.head_propor, best_acc, best_std, args.pretrain)
+            best_acc, best_std = evaluation_ce( model, protocal_model, test_loader,
+                                                args.head_propor, best_acc, best_std,
+                                                args.pretrain )
+
     print("Best Rank ACC: %9f" % (float(best_acc)))
-    print("Ste Rank Acc: %9f" %(float(best_std)))
+    print("Ste Rank ACC: %9f" %(float(best_std)))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Self-Supervised L2E')

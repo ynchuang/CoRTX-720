@@ -97,6 +97,7 @@ def main(args):
     ###################
     setup_seed(7)
     best_l2 = 1.0
+    best_ste_l2 = 0.0
     device = 'cpu'
     use_cuda = True
     if use_cuda and torch.cuda.is_available():
@@ -177,17 +178,21 @@ def main(args):
         # pretrain loading
         if args.pretrain:
             print(" ===== Start to use prtrain =====")
-            checkpoint = torch.load('./adult/weight/model_adult_autoint_0.01.pth.tar')
+            checkpoint = torch.load('./adult/weight/REG_model_adult_CoRTX_0.25.pth.tar')
             model = checkpoint["pred_model"]
             protocal_model = checkpoint["head_linear_model"]
-            best_l2, best_l2_ste = evaluation_mse(predict_model, model, protocal_model, test_loader, args.head_propor, best_l2, column_data, mean_value_data)
+            mean_value_data = checkpoint["mean_value"]
+            column_data = checkpoint["column_data"]
+            best_l2, best_l2_ste = evaluation_mse(  predict_model, model, protocal_model, 
+                                                    test_loader, args.head_propor, args.pretrain, 
+                                                    best_l2, column_data, mean_value_data, 
+                                                    best_ste_l2 )
             break
 
 	    # init training loss
         train_loss = 0.0
 
 	    # train the model
-        # print(len(train_loader.dataset))
         for data_idx, _ in train_loader:
             optimizer.zero_grad()
             tar, pos = contrast_gen(model, data_idx, pos_num, neg_num)
@@ -234,8 +239,11 @@ def main(args):
                 train_loss = train_loss/len(protocal_train_loader.dataset)
                 # if epoch%100 ==0:
                 #    print('Epoch: {} \tTraining Loss: {:.6f}'.format(epoch+1, train_loss))
-
-            best_l2, best_l2_ste = evaluation_mse(predict_model, model, protocal_model, test_loader, args.head_propor, best_l2, column_data, mean_value_data)
+            best_l2, best_l2_ste = evaluation_mse(  predict_model, model, protocal_model, 
+                                                    test_loader, args.head_propor, args.pretrain, 
+                                                    best_l2, column_data, mean_value_data, 
+                                                    best_ste_l2 )
+            
     print("Best L2: %9f" % (float(best_l2)))
     print("Ste L2: %9f" %(float(best_l2_ste)))
 

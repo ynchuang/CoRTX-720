@@ -8,10 +8,9 @@ from scipy.stats import sem
 from utils import save_checkpoint
 
 @torch.no_grad()
-def evaluation_mse(pred_model, model, head_model, test_loader, head_propor, best_l2, column_data, mean_value_data):
-    
+def evaluation_mse(pred_model, model, head_model, test_loader, head_propor, pretrain, best_l2, column_data, mean_value_data, best_ste_l2):
+
     # initialize lists to monitor test loss and accuracy
-    best_ste_l2 = 0.0
     model.eval()
     head_model.eval()
 
@@ -54,14 +53,20 @@ def evaluation_mse(pred_model, model, head_model, test_loader, head_propor, best
             value_shap_buf = value
 
     l2, ste_l2 = _l2_dist_attr(value_output_buf, value_shap_buf)
-    if l2 <= best_l2:
+    if l2 <= best_l2 and not pretrain:
         best_l2 = l2
         best_ste_l2 = ste_l2
         save_checkpoint("./adult/weight/REG_model_adult_CoRTX_" + str(head_propor) + ".pth.tar",
-                    best_l2=best_l2,
-                    pred_model=model,
-                    head_linear_model=head_model,
+                    best_l2 = best_l2,
+                    pred_model = model,
+                    mean_value = mean_value_data,
+                    column_data = column_data,
+                    head_linear_model = head_model,
                     )
+
+    if pretrain:
+        best_l2, best_ste_l2 = _l2_dist_attr(value_output_buf, value_shap_buf)
+        return best_l2, best_ste_l2
 
     print("L2 Norm: %f | Std L2: %6f \n" %(float(l2), float(best_ste_l2)))
     return best_l2, best_ste_l2
@@ -69,7 +74,7 @@ def evaluation_mse(pred_model, model, head_model, test_loader, head_propor, best
 
 @torch.no_grad()
 def evaluation_ce(model, head_model, test_loader, head_propor, best_acc, best_std, pretrain):
-    
+
     # initialize lists to monitor test loss and accuracy
     model.eval()
     head_model.eval()
@@ -83,9 +88,9 @@ def evaluation_ce(model, head_model, test_loader, head_propor, best_acc, best_st
             rank_shap_buf = target
             value_output_buf = output
             value_shap_buf = value
-    
+
     mAP, std_mAP = _acc_rank(value_output_buf, rank_shap_buf)
-    
+
     if mAP >= best_acc and not pretrain:
         best_acc = mAP
         best_std = std_mAP
@@ -96,15 +101,17 @@ def evaluation_ce(model, head_model, test_loader, head_propor, best_acc, best_st
                     head_linear_model = head_model,
                     )
 
-    print("Rank ACC: %f | Std Rank Acc: %6f \n" % (float(mAP), float(std_mAP)))
+    if pretrain:
+        best_acc, best_std = _acc_rank(value_output_buf, rank_shap_buf)
+        return best_acc, best_std
+
+    print("Rank ACC: %f | Std Rank ACC: %6f \n" % (float(mAP), float(std_mAP)))
     return best_acc, best_std
 
 
 def _acc_rank(rank_pred, rank_shap):
-    N = rank_shap.shape[0]
     feature_num = rank_shap.shape[1]
     rank_pred = rank_pred.cpu().reshape(-1, feature_num, feature_num).argmax(axis=2)
-    print(rank_pred[0])
     rank_shap = rank_shap.cpu()
     mAP_weight = torch.tensor([[1./(feature_num-x) for x in range(feature_num)]])
     rank_mAP = torch.sum((rank_pred == rank_shap).type(torch.float)*mAP_weight, dim=1)/mAP_weight.sum()
