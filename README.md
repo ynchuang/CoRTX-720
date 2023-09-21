@@ -7,7 +7,7 @@
 ### CoRTX Framework
 - The pipeline first obtains the explanation encoder for contrastive explanation representation learning, and then the explanation head is tuned with a small amount of explanation labels.
 <div align=center>
-<img width="800" height="200" src="./framework_figure/framework.jpg">
+<img width="700" height="200" src="./framework_figure/framework.jpg">
 </div>
 
 
